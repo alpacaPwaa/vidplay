@@ -1,0 +1,54 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id    String @id @unique
+  email String @unique
+
+  File File[]
+
+  paymentCustomerId       String?   @unique @map(name: "payment_customer_id")
+  paymentSubscriptionId   String?   @unique @map(name: "payment_subscription_id")
+  paymentPriceId          String?   @map(name: "payment_price_id")
+  paymentCurrentPeriodEnd DateTime? @map(name: "payment_current_period_end")
+}
+
+enum FileTemplate {
+  TEMPLATE1
+  TEMPLATE2
+}
+
+model File {
+  id   String @id @default(cuid())
+  name String
+
+  Videos Video[]
+
+  fileTemplate FileTemplate @default(TEMPLATE1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  User      User?    @relation(fields: [userId], references: [id])
+  userId    String?
+}
+
+model Video {
+  id   String @id @default(cuid())
+  name String
+
+  url String
+  key String
+
+  file   File?   @relation(fields: [fileId], references: [id])
+  fileId String?
+}
