@@ -144,23 +144,6 @@ export const appRouter = router({
         });
       }
 
-      const putObjectCommand = new PutObjectCommand({
-        Bucket: process.env.AWS_BUCKET_NAME!,
-        Key: generateFileName(),
-      });
-
-      const s3 = new S3Client({
-        region: process.env.AWS_BUCKET_REGION!,
-        credentials: {
-          accessKeyId: process.env.AWS_ACCESS_KEY!,
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-        },
-      });
-
-      const singedURL = await getSignedUrl(s3, putObjectCommand, {
-        expiresIn: 60,
-      });
-
       const openai = new OpenAI({
         apiKey: process.env.OPENAI_API_KEY,
       });
@@ -168,7 +151,7 @@ export const appRouter = router({
       const allQuestion = await openai.completions.create({
         model: "gpt-3.5-turbo-instruct",
         prompt:
-          "Write 1 short quiz with 4 choices and answer about " +
+          "Write 1 general knowledge quiz with 4 choices and answer about " +
           input.promt +
           " Always start with keyword Question:, example Question: question. Then the choices, A, B, C, and D. Lastly, the correct answer which always must begin with the keyword Answer:, then the correct answer, example: Answer. A. Correct Answer",
         temperature: 1,
@@ -190,19 +173,6 @@ export const appRouter = router({
       const firstQuestion = firstQuestionMatch
         ? firstQuestionMatch[1].trim()
         : "";
-
-      // const firstQuestionSpeechFile = path.resolve("./speech.mp3");
-
-      // const firstQuestionSpeech = await openai.audio.speech.create({
-      //   model: "tts-1",
-      //   voice: "alloy",
-      //   input: firstQuestion,
-      // });
-      // console.log(firstQuestionSpeechFile);
-      // const firstQuestionBuffer = Buffer.from(
-      //   await firstQuestionSpeech.arrayBuffer()
-      // );
-      // await fs.promises.writeFile(firstQuestionSpeechFile, firstQuestionBuffer);
 
       const firstQuestionWords = firstQuestion.split(" ");
       let firstQuestionWordCount = firstQuestionWords.length;
@@ -253,9 +223,28 @@ export const appRouter = router({
 
       console.log("Answer:", firstAnswer);
 
+      const putObjectCommand = new PutObjectCommand({
+        Bucket: process.env.AWS_BUCKET_NAME!,
+        Key: generateFileName(),
+      });
+
+      const s3 = new S3Client({
+        region: process.env.AWS_BUCKET_REGION!,
+        credentials: {
+          accessKeyId: process.env.AWS_ACCESS_KEY!,
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+        },
+      });
+
+      const singedURL = await getSignedUrl(s3, putObjectCommand, {
+        expiresIn: 60,
+      });
+
       const ffmpeg = require("fluent-ffmpeg");
 
-      ffmpeg({ source: input.video })
+      ffmpeg()
+        .input(input.video)
+        .output("./templateOutput.mp4")
         .on("end", () => {
           console.log("Job done");
         })
@@ -288,7 +277,7 @@ export const appRouter = router({
             },
           },
         ])
-        .saveToFile("templateOutput.mp4");
+        .run();
 
       const createdVideo = await db.video.create({
         data: {
